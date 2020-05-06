@@ -17,11 +17,12 @@ class CNN():
     batch_size = 128
     learning_rate = 0.001
 
-    def __init__(self, data_iterator, enable_session=False, num_epochs=100, learning_rate=0.001, shape=None, num_classes=None):
+    def __init__(self, X, y, data_iterator, enable_session=False, num_epochs=100, learning_rate=0.001, shape=None, num_classes=None):
 
         self.num_classes = num_classes
-        self.data_iterator = data_iterator
-
+        self.data_iterator = data_iterator 
+        self.x = X
+        self.y = y
         if enable_session:
             config = tf.ConfigProto()
             config.gpu_options.per_process_gpu_memory_fraction = 0.6
@@ -34,19 +35,19 @@ class CNN():
                         learning_rate=learning_rate,
                         shape=shape,
                         num_classes=num_classes)
+
         
     def build_model(self, epochs=50, learning_rate=0.001, shape=None, num_classes=None):
-        x, y, cross_entropy, correct = None, None, None, None
+        cross_entropy, correct = None, None
 
-        self.x = tf.placeholder(tf.float32, [None, 28*28])
-        self.y = tf.placeholder(tf.float32, [None, 10])
+#        self.x = tf.reshape(self.x, [-1, 28, 28, 1])
 
-        self.x = tf.reshape(self.x, shape=[-1, 28, 28, 1])
+        reshaped = tf.reshape(self.x, [-1, 28, 28, 1])
 
         # First layer
         c1_channels = 1
         c1_filters = 6
-        c1 = conv_layer(input=self.x, input_channels=c1_channels, filters=c1_filters, filters_size=5)
+        c1 = conv_layer(input=reshaped, input_channels=c1_channels, filters=c1_filters, filters_size=5)
         # Pooling
         pool1 = pool(layer=c1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1])
 
@@ -90,7 +91,7 @@ class CNN():
     def train(self, epochs, limit=6):
         print("Training model")
 
-        print("shape of the input data is ", self.data_iterator.x_train.shape, self.data_iterator.y_train.shape)
+        print("shape of the input data is ", self.data_iterator.x_train.shape[0], self.data_iterator.y_train.shape)
 
         self.tf_sess.run(tf.global_variables_initializer())
 
@@ -100,7 +101,7 @@ class CNN():
             self.data_iterator.reset()
             try:
                 total = 0
-                while 1:
+                while self.data_iterator.current_index < self.data_iterator.x_train.shape[0]:
                     batch_x, batch_y = self.data_iterator.next_batch()
                     
                     self.tf_sess.run(self.optimizer, feed_dict={self.x:batch_x, self.y:batch_y})
@@ -110,15 +111,18 @@ class CNN():
                     total_loss += loss * len(batch_y)
                     total_acc += acc * len(batch_y)
 
+                    if self.data_iterator.current_index == self.data_iterator.x_train.shape[0]:
+                        break
+
             except IndexError as error:
                 pass
-            
+            print(f'done training epoch {epoch + 1}')
             validation_x, validation_y = self.data_iterator.get_validation()
             vloss, vacc = self.tf_sess.run([self.loss, self.accuracy], feed_dict={self.x:validation_x, self.y:validation_y})
-            print(f'epoch {epoch + 1}: loss = {vloss:.4f},'
-                  f'training accuracy = {total / len(self.data_iterator.y_train):.4f}'
-                  f'validation accuracy = {vacc:.4f}',
-                  f'learning_rate = {self.learning_rate:.10f}')
+            print(f'epoch {epoch + 1}: loss = {vloss:.4f}\n'
+                  f'training accuracy = {total / len(self.data_iterator.y_train):.4f}\n'
+                  f'validation accuracy = {vacc:.4f}\n',
+                  f'learning_rate = {self.learning_rate:.10f}\n')
             
             # Early stopping
             if vacc > best:
@@ -131,16 +135,19 @@ class CNN():
                 print('early stopping')
                 break
 
-            test_x, test_y = self.data_iterator.get_test()
-            acc = self.tf.sess.run(self.accuracy, feed_dict={self.x: test_x, self.y: test_y})
-            print(f'test accuracy = {acc:.4f}')
+        test_x, test_y = self.data_iterator.get_test()
+        acc = self.tf_sess.run(self.accuracy, feed_dict={self.x: test_x, self.y: test_y})
+        print(f'test accuracy = {acc:.4f}\n')
 
 if __name__ == "__main__":
     warnings.filterwarnings("ignore")
 
     # Get the data
-    train_data = pd.read_csv("./input/mnist_train.csv")
-    test_data = pd.read_csv("./input/mnist_test.csv")
+    
+    print(os.getcwd())
+
+    train_data = pd.read_csv("input /mnist_train.csv")
+    test_data = pd.read_csv("input /mnist_test.csv")
 
     y_train = train_data.iloc[:,0]
     x_train = train_data.drop(train_data.columns[0], axis=1)
@@ -169,14 +176,23 @@ if __name__ == "__main__":
     epochs=50
     learning_rate=1e-3
 
+    X = tf.placeholder(tf.float32, shape=[None, 28*28])
+    y = tf.placeholder(tf.float32, shape=[None, 10])
 
-    cnn = CNN(data_iterator=data_loader,
+
+    cnn = CNN(X=X,
+              y=y,
+              data_iterator=data_loader,
               enable_session=True,
               num_epochs=epochs,
               learning_rate=learning_rate,
               shape=shape,
               num_classes=n_classes)
 
+    # cnn.build_model(epochs=epochs,
+    #                 learning_rate=learning_rate,
+    #                 shape=shape,
+    #                 num_classes=n_classes)
     cnn.train(epochs=epochs, limit=8)
     cnn.tf_sess.close()
     print("Done")

@@ -32,9 +32,9 @@ class Data_Iterator():
         self.x_test = normalize_data(self.x_test)
         self.y_test = one_hot_encode(self.y_test)
 
-        self.x_train = tf.dtypes.cast(self.x_train, dtype=tf.float32)
-        self.x_test = tf.dtypes.cast(self.x_test, dtype=tf.float32)
-        self.validation_x = tf.dtypes.cast(self.validation_x, dtype=tf.float32)
+        # self.x_train = tf.dtypes.cast(self.x_train, dtype=tf.float32)
+        # self.x_test = tf.dtypes.cast(self.x_test, dtype=tf.float32)
+        # self.validation_x = tf.dtypes.cast(self.validation_x, dtype=tf.float32)
 
 
     def next_batch(self):
