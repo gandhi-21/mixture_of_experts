@@ -98,6 +98,7 @@ class mixture_of_experts:
         for expert in self.networks:
             cross_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=expert.logits, labels=self.y)
             expert.loss = tf.reduce_mean(cross_entropy)
+            expert.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(expert.loss)
             correct = tf.equal(tf.argmax(expert.logits, axis=1), tf.argmax(self.y, axis=1))
             expert.accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
 
@@ -133,8 +134,13 @@ class mixture_of_experts:
                     total_loss += loss * len(batch_y)
                     total_acc += acc * len(batch_y)
 
+                    for index, expert in enumerate(self.networks):
+                        self.tf_sess.run([expert.optimizer], feed_dict={self.x: batch_x, self.y: batch_y})
+
+
                     if self.data_iterator.current_index == self.data_iterator.x_train.shape[0]:
                         break
+                    
 
             except IndexError as error:
                 pass
@@ -163,7 +169,7 @@ class mixture_of_experts:
         
         # Evaluate the accuracy for each expert
         for index, expert in enumerate(self.networks):
-            loss, acc = self.tf_sess.run(50 [expert.loss, expert.accuracy], feed_dict={self.x: test_x, self.y: test_y})
+            loss, acc = self.tf_sess.run([expert.loss, expert.accuracy], feed_dict={self.x: test_x, self.y: test_y})
             print(f'\tExpert {index + 1}:\ntest loss = {loss:.4f}\ntest_accuracy={acc:.4f}')
 
 
@@ -198,7 +204,7 @@ if __name__ == "__main__":
     n_test = len(x_test)
     shape = 10
     n_classes = 10
-    epochs = 50
+    epochs = 10
     learning_rate = 1e-3
 
     moe = mixture_of_experts(enable_session=True, data_iterator=data_loader,
